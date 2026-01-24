@@ -1,0 +1,79 @@
+import { Prisma } from "@prisma/client";
+// import payments from "razorpay/dist/types/payments";
+export async function checkoutOrderService(userId) {
+  // Get active cart
+  const cart = await Prisma.cart.findFirst({
+    where: { userId, status: "ACTIVE" },
+    include: {
+      items: {
+        include: { product: true },
+      },
+    },
+  });
+
+  if (!cart || cart.items.length === 0) {
+    throw new Error("Cart is Empty");
+  }
+
+  let totalAmount = 0;
+
+  //   Validate stock and calculate total
+
+  for (const item of cart.items) {
+    if (!item.product.isActive) {
+      throw new Error(`${item.product.name} is unavailable`);
+    }
+
+    if (item.product.stock < item.quantity) {
+      throw new Error(`Insufficient stock for ${item.product.name}`);
+    }
+
+    totalAmount += item.price * item.quantity;
+  }
+
+  //   Create Order
+  const order = await Prisma.order.create({
+    data: {
+      userId,
+      totalAmount,
+      paymentStatus: "COD",
+    },
+  });
+
+  //   Reduce stock
+  for (const item of cart.items) {
+    await Prisma.product.update({
+      where: { id: item.productId },
+      data: {
+        stock: { decrement: item.quantity },
+      },
+    });
+  }
+
+  //   Close cart
+
+  await Prisma.cart.update({
+    where: { id: cart.id },
+    data: { status: "CHECKED_OUT" },
+  });
+
+  return order;
+}
+
+export async function getMyOrdersService(userId) {
+  return Prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getOrderByIdService(userId, orderId) {
+  const order = await Prisma.order.findUnique({
+    where: { id: orderId },
+  });
+
+  if (!order || order.userId !== userId) {
+    throw new Error("Order not found");
+  }
+  return order;
+}
