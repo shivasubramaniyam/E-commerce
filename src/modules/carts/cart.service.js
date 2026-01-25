@@ -1,6 +1,6 @@
 import prisma from "../../config/db.js";
 
-// 1️⃣ Get or create active cart
+//  Get or create active cart
 async function getOrCreateCart(userId) {
   let cart = await prisma.cart.findFirst({
     where: { userId, status: "ACTIVE" },
@@ -17,12 +17,12 @@ async function getOrCreateCart(userId) {
   return cart;
 }
 
-// 2️⃣ Get cart
+//  Get cart
 export async function getCartService(userId) {
   return getOrCreateCart(userId);
 }
 
-// 3️⃣ Add to cart
+//  Add to cart
 export async function addToCartService(userId, productId, quantity = 1) {
   const product = await prisma.product.findUnique({
     where: { id: productId },

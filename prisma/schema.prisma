@@ -41,13 +41,15 @@ model Cart {
 
 model CartItem {
   id        String   @id @default(uuid())
-  cartId   String
+  cartId    String
   productId String
-  quantity Int
-  price    Int
+  quantity  Int
+  price     Int
 
   cart     Cart    @relation(fields: [cartId], references: [id])
   product  Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
 }
 
 model OrderItem {
@@ -56,7 +58,7 @@ model OrderItem {
   productId String
   quantity  Int
   price     Int
-
+  name      String?
   order     Order    @relation(fields: [orderId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
 }
@@ -67,6 +69,7 @@ model Order {
   totalAmount     Int
   paymentStatus   String
   paymentIntentId String?
+  status          OrderStatus @default(PLACED)
   user            User     @relation(fields: [userId], references: [id])
   createdAt       DateTime @default(now())
   items           OrderItem[]
@@ -80,4 +83,12 @@ enum Role {
 enum CartStatus {
   ACTIVE
   CHECKED_OUT
+}
+
+enum OrderStatus{
+  PLACED
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }

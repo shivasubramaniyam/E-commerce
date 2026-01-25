@@ -1,3 +1,4 @@
+// import items from "razorpay/dist/types/items";
 import prisma from "../../config/db.js";
 
 export async function checkoutOrderService(userId) {
@@ -20,8 +21,7 @@ export async function checkoutOrderService(userId) {
   const order = await prisma.$transaction(async (tx) => {
     let totalAmount = 0;
 
-    //   Validate stock and calculate total
-
+    // Validate stock & calculate total
     for (const item of cart.items) {
       if (!item.product.isActive) {
         throw new Error(`${item.product.name} is unavailable`);
@@ -31,10 +31,10 @@ export async function checkoutOrderService(userId) {
         throw new Error(`Insufficient stock for ${item.product.name}`);
       }
 
-      totalAmount += item.product.price * item.quantity;
+      totalAmount += item.price * item.quantity;
     }
 
-    //   Create Order
+    // Create order
     const order = await tx.order.create({
       data: {
         userId,
@@ -48,19 +48,19 @@ export async function checkoutOrderService(userId) {
       },
     });
 
-    //  Move cart items → order items
+    // Move cart items → order items
     for (const item of cart.items) {
       await tx.orderItem.create({
         data: {
           orderId: order.id,
           productId: item.productId,
           quantity: item.quantity,
-          price: item.product.price,
+          price: item.price,
         },
       });
     }
 
-    //   Reduce stock
+    // Reduce stock
     for (const item of cart.items) {
       await tx.product.update({
         where: { id: item.productId },
@@ -69,13 +69,22 @@ export async function checkoutOrderService(userId) {
         },
       });
     }
-    //   Close cart
 
+    // Close cart
     await tx.cart.update({
       where: { id: cart.id },
       data: { status: "CHECKED_OUT" },
     });
-    return order;
+
+    // Fetch full order WITH items
+    return tx.order.findUnique({
+      where: { id: order.id },
+      include: {
+        items: {
+          include: { product: true },
+        },
+      },
+    });
   });
 
   return order;
@@ -84,6 +93,7 @@ export async function checkoutOrderService(userId) {
 export async function getMyOrdersService(userId) {
   return prisma.order.findMany({
     where: { userId },
+    include: { items: true },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -97,4 +107,11 @@ export async function getOrderByIdService(userId, orderId) {
     throw new Error("Order not found");
   }
   return order;
+}
+
+export async function updateOrderStatusService(orderId, status) {
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { status },
+  });
 }
