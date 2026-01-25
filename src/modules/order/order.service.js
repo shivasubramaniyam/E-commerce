@@ -1,8 +1,8 @@
-import { Prisma } from "@prisma/client";
-// import payments from "razorpay/dist/types/payments";
+import prisma from "../../config/db.js";
+
 export async function checkoutOrderService(userId) {
   // Get active cart
-  const cart = await Prisma.cart.findFirst({
+  const cart = await prisma.cart.findFirst({
     where: { userId, status: "ACTIVE" },
     include: {
       items: {
@@ -14,61 +14,82 @@ export async function checkoutOrderService(userId) {
   if (!cart || cart.items.length === 0) {
     throw new Error("Cart is Empty");
   }
+  // Partial orders
+  // Overselling stock
 
-  let totalAmount = 0;
+  const order = await prisma.$transaction(async (tx) => {
+    let totalAmount = 0;
 
-  //   Validate stock and calculate total
+    //   Validate stock and calculate total
 
-  for (const item of cart.items) {
-    if (!item.product.isActive) {
-      throw new Error(`${item.product.name} is unavailable`);
+    for (const item of cart.items) {
+      if (!item.product.isActive) {
+        throw new Error(`${item.product.name} is unavailable`);
+      }
+
+      if (item.product.stock < item.quantity) {
+        throw new Error(`Insufficient stock for ${item.product.name}`);
+      }
+
+      totalAmount += item.product.price * item.quantity;
     }
 
-    if (item.product.stock < item.quantity) {
-      throw new Error(`Insufficient stock for ${item.product.name}`);
-    }
-
-    totalAmount += item.price * item.quantity;
-  }
-
-  //   Create Order
-  const order = await Prisma.order.create({
-    data: {
-      userId,
-      totalAmount,
-      paymentStatus: "COD",
-    },
-  });
-
-  //   Reduce stock
-  for (const item of cart.items) {
-    await Prisma.product.update({
-      where: { id: item.productId },
+    //   Create Order
+    const order = await tx.order.create({
       data: {
-        stock: { decrement: item.quantity },
+        userId,
+        totalAmount,
+        paymentStatus: "COD",
+      },
+      include: {
+        items: {
+          include: { product: true },
+        },
       },
     });
-  }
 
-  //   Close cart
+    //  Move cart items → order items
+    for (const item of cart.items) {
+      await tx.orderItem.create({
+        data: {
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.product.price,
+        },
+      });
+    }
 
-  await Prisma.cart.update({
-    where: { id: cart.id },
-    data: { status: "CHECKED_OUT" },
+    //   Reduce stock
+    for (const item of cart.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: { decrement: item.quantity },
+        },
+      });
+    }
+    //   Close cart
+
+    await tx.cart.update({
+      where: { id: cart.id },
+      data: { status: "CHECKED_OUT" },
+    });
+    return order;
   });
 
   return order;
 }
 
 export async function getMyOrdersService(userId) {
-  return Prisma.order.findMany({
+  return prisma.order.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function getOrderByIdService(userId, orderId) {
-  const order = await Prisma.order.findUnique({
+  const order = await prisma.order.findUnique({
     where: { id: orderId },
   });
 

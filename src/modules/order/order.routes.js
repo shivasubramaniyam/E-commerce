@@ -8,6 +8,6 @@ const router = Router();
 router.use(authenticate);
 router.post("/checkout", checkOutOrder);
 router.get("/", getMyOrder);
-router.post("/:id", getOrderById);
+router.get("/:id", getOrderById);
 
 export default router;
