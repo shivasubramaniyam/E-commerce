@@ -90,12 +90,34 @@ export async function checkoutOrderService(userId) {
   return order;
 }
 
-export async function getMyOrdersService(userId) {
-  return prisma.order.findMany({
-    where: { userId },
+export async function getMyOrdersService(userId, query) {
+  const { page = 1, limit = 5, status } = query;
+
+  const skip = (page - 1) * limit;
+
+  const where = { userId };
+  if (status) {
+    where.status = status;
+  }
+  const order = await prisma.order.findMany({
+    where,
     include: { items: true },
+    skip,
+    take: Number(limit),
     orderBy: { createdAt: "desc" },
   });
+
+  const total = await prisma.order.count({ where });
+
+  return {
+    data: orders,
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 export async function getOrderByIdService(userId, orderId) {

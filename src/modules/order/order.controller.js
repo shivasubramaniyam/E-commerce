@@ -15,7 +15,7 @@ export async function checkOutOrder(req, res) {
 }
 
 export async function getMyOrder(req, res) {
-  const orders = await getMyOrdersService(req.user.userId);
+  const orders = await getMyOrdersService(req.user.userId, req.query);
   res.json(orders);
 }
 
