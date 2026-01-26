@@ -8,6 +8,9 @@ import {
   updateOrderStatus,
 } from "./order.controller.js";
 import { authorizeRole } from "../../middleware/role.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { updateOrderStatusService } from "./order.service.js";
+import { updateOrderStatusSchema } from "../../validators/order.schema.js";
 
 const router = Router();
 
@@ -17,6 +20,11 @@ router.get("/", getMyOrder);
 router.get("/:id", getOrderById);
 
 // admin to change the order status
-router.put("/:id/status", authorizeRole("ADMIN"), updateOrderStatus);
+router.put(
+  "/:id/status",
+  authorizeRole("ADMIN"),
+  validate(updateOrderStatusSchema),
+  updateOrderStatus,
+);
 
 export default router;
