@@ -5,12 +5,12 @@ import {
   updateOrderStatusService,
 } from "./order.service.js";
 
-export async function checkOutOrder(req, res) {
+export async function checkOutOrder(req, res, next) {
   try {
     const order = await checkoutOrderService(req.user.userId);
     res.status(201).json(order);
   } catch (e) {
-    res.status(400).json({ message: e.message });
+    next(err);
   }
 }
 

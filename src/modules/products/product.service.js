@@ -1,10 +1,11 @@
 import prisma from "../../config/db.js";
+import { AppError } from "../../utils/AppError.js";
 
 export async function createProductService(data) {
   const { name, description, price, stock } = data;
 
   if (!name || price === undefined || stock === undefined) {
-    throw new Error("Missing required fields");
+    throw new AppError("Missing required fields");
   }
 
   return prisma.product.create({
@@ -70,7 +71,7 @@ export async function getProductByIdServie(id) {
     where: { id },
   });
   if (!product || !product.isActive) {
-    throw new Error("Product not found");
+    throw new AppError("Product not found", 404);
   }
   return product;
 }

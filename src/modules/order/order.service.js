@@ -1,5 +1,6 @@
 // import items from "razorpay/dist/types/items";
 import prisma from "../../config/db.js";
+import { AppError } from "../../utils/AppError.js";
 
 export async function checkoutOrderService(userId) {
   // Get active cart
@@ -13,7 +14,7 @@ export async function checkoutOrderService(userId) {
   });
 
   if (!cart || cart.items.length === 0) {
-    throw new Error("Cart is Empty");
+    throw new AppError("Cart is Empty");
   }
   // Partial orders
   // Overselling stock
@@ -24,11 +25,11 @@ export async function checkoutOrderService(userId) {
     // Validate stock & calculate total
     for (const item of cart.items) {
       if (!item.product.isActive) {
-        throw new Error(`${item.product.name} is unavailable`);
+        throw new AppError(`${item.product.name} is unavailable`);
       }
 
       if (item.product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for ${item.product.name}`);
+        throw new AppError(`Insufficient stock for ${item.product.name}`);
       }
 
       totalAmount += item.price * item.quantity;

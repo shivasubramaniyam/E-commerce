@@ -1,5 +1,6 @@
 import express from "express";
 import routes from "./routes.js";
+import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
 
@@ -15,5 +16,6 @@ app.use("/api", routes);
 app.get("/health", (req, res) => {
   res.json({ status: "API is running" });
 });
+app.use(errorHandler);
 
 export default app;
