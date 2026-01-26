@@ -5,7 +5,7 @@ export async function createProductService(data) {
   const { name, description, price, stock } = data;
 
   if (!name || price === undefined || stock === undefined) {
-    throw new AppError("Missing required fields");
+    throw new AppError("Missing required fields", 400);
   }
 
   return prisma.product.create({

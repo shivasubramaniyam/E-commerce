@@ -11,7 +11,7 @@ export async function registerUser(email, password) {
   });
 
   if (existingUser) {
-    throw new AppError("User already exists");
+    throw new AppError("User already exists", 409);
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -38,7 +38,7 @@ export async function loginUser(email, password) {
   const isPasswordvalid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordvalid) {
-    throw new AppError("Invalid Password");
+    throw new AppError("Invalid Password", 401);
   }
 
   const token = jwt.sign(
