@@ -17,7 +17,7 @@ export async function createProduct(req, res) {
 }
 
 export async function getAllProducts(req, res) {
-  const products = await getAllProductsServie();
+  const products = await getAllProductsServie(req.query);
   res.json(products);
 }
 

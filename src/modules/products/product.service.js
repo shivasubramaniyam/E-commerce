@@ -1,10 +1,11 @@
 import prisma from "../../config/db.js";
+import { AppError } from "../../utils/AppError.js";
 
 export async function createProductService(data) {
   const { name, description, price, stock } = data;
 
   if (!name || price === undefined || stock === undefined) {
-    throw new Error("Missing required fields");
+    throw new AppError("Missing required fields", 400);
   }
 
   return prisma.product.create({
@@ -17,10 +18,52 @@ export async function createProductService(data) {
   });
 }
 
-export async function getAllProductsServie() {
-  return prisma.product.findMany({
-    where: { isActive: true },
+export async function getAllProductsServie(query) {
+  const {
+    page = 1,
+    limit = 10,
+    minPrice,
+    maxPrice,
+    inStock,
+    sortBy = "createdAt",
+    order = "desc",
+  } = query;
+
+  const skip = (page - 1) * limit;
+
+  const where = {
+    isActive: true,
+  };
+
+  if (minPrice || maxPrice) {
+    where.price = {};
+    if (minPrice) where.price.gte = Number(minPrice);
+    if (maxPrice) where.price.lte = Number(maxPrice);
+  }
+
+  if (inStock === "true") {
+    where.stock = { gt: 0 };
+  }
+
+  const products = await prisma.product.findMany({
+    where,
+    skip,
+    take: Number(limit),
+    orderBy: {
+      [sortBy]: order,
+    },
   });
+
+  const total = await prisma.product.count({ where });
+  return {
+    data: products,
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
 
 export async function getProductByIdServie(id) {
@@ -28,7 +71,7 @@ export async function getProductByIdServie(id) {
     where: { id },
   });
   if (!product || !product.isActive) {
-    throw new Error("Product not found");
+    throw new AppError("Product not found", 404);
   }
   return product;
 }

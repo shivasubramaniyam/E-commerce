@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "../../config/db.js";
+import { AppError } from "../../utils/AppError.js";
 
 const SALT_ROUNDS = 10;
 
@@ -10,7 +11,7 @@ export async function registerUser(email, password) {
   });
 
   if (existingUser) {
-    throw new Error("User already exists");
+    throw new AppError("User already exists", 409);
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -31,13 +32,13 @@ export async function loginUser(email, password) {
   });
 
   if (!user) {
-    throw new Error("Invalid Credentials");
+    throw new AppError("Invalid Credentials", 401);
   }
 
   const isPasswordvalid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordvalid) {
-    throw new Error("Invalid Password");
+    throw new AppError("Invalid Password", 401);
   }
 
   const token = jwt.sign(

@@ -1,6 +1,7 @@
 import prisma from "../../config/db.js";
+import { AppError } from "../../utils/AppError.js";
 
-// 1️⃣ Get or create active cart
+//  Get or create active cart
 async function getOrCreateCart(userId) {
   let cart = await prisma.cart.findFirst({
     where: { userId, status: "ACTIVE" },
@@ -17,23 +18,23 @@ async function getOrCreateCart(userId) {
   return cart;
 }
 
-// 2️⃣ Get cart
+//  Get cart
 export async function getCartService(userId) {
   return getOrCreateCart(userId);
 }
 
-// 3️⃣ Add to cart
+//  Add to cart
 export async function addToCartService(userId, productId, quantity = 1) {
   const product = await prisma.product.findUnique({
     where: { id: productId },
   });
 
   if (!product || !product.isActive) {
-    throw new Error("Product not available");
+    throw new AppError("Product not available", 404);
   }
 
   if (product.stock < quantity) {
-    throw new Error("Insufficient stock");
+    throw new AppError("Insufficient stock", 400);
   }
 
   const cart = await getOrCreateCart(userId);
@@ -60,7 +61,7 @@ export async function addToCartService(userId, productId, quantity = 1) {
 // 4️⃣ Update quantity
 export async function updateCartItemService(userId, itemId, quantity) {
   if (quantity <= 0) {
-    throw new Error("Quantity must be greater than zero");
+    throw new AppError("Quantity must be greater than zero", 400);
   }
 
   const item = await prisma.cartItem.findUnique({
@@ -69,7 +70,7 @@ export async function updateCartItemService(userId, itemId, quantity) {
   });
 
   if (!item || item.cart.userId !== userId) {
-    throw new Error("Cart item not found");
+    throw new AppError("Cart item not found", 404);
   }
 
   return prisma.cartItem.update({
@@ -86,7 +87,7 @@ export async function removeCartItemService(userId, itemId) {
   });
 
   if (!item || item.cart.userId !== userId) {
-    throw new Error("Cart item not found");
+    throw new AppError("Cart item not found", 404);
   }
 
   await prisma.cartItem.delete({
