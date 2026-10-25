@@ -14,10 +14,8 @@ export async function checkoutOrderService(userId) {
   });
 
   if (!cart || cart.items.length === 0) {
-    throw new AppError("Cart is Empty");
+    throw new AppError("Cart is Empty", 400);
   }
-  // Partial orders
-  // Overselling stock
 
   const order = await prisma.$transaction(async (tx) => {
     let totalAmount = 0;
@@ -25,11 +23,11 @@ export async function checkoutOrderService(userId) {
     // Validate stock & calculate total
     for (const item of cart.items) {
       if (!item.product.isActive) {
-        throw new AppError(`${item.product.name} is unavailable`);
+        throw new AppError(`${item.product.name} is unavailable`, 400);
       }
 
       if (item.product.stock < item.quantity) {
-        throw new AppError(`Insufficient stock for ${item.product.name}`);
+        throw new AppError(`Insufficient stock for ${item.product.name}`, 400);
       }
 
       totalAmount += item.price * item.quantity;
@@ -42,34 +40,27 @@ export async function checkoutOrderService(userId) {
         totalAmount,
         paymentStatus: "COD",
       },
-      include: {
-        items: {
-          include: { product: true },
-        },
-      },
     });
 
-    // Move cart items → order items
-    for (const item of cart.items) {
-      await tx.orderItem.create({
-        data: {
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-        },
-      });
-    }
+    // ✅ PERF: batch insert all order items in a single query (was N individual inserts)
+    await tx.orderItem.createMany({
+      data: cart.items.map((item) => ({
+        orderId: order.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    });
 
-    // Reduce stock
-    for (const item of cart.items) {
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: { decrement: item.quantity },
-        },
-      });
-    }
+    // ✅ PERF: batch stock updates in parallel (was N sequential awaits)
+    await Promise.all(
+      cart.items.map((item) =>
+        tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        })
+      )
+    );
 
     // Close cart
     await tx.cart.update({
@@ -100,18 +91,21 @@ export async function getMyOrdersService(userId, query) {
   if (status) {
     where.status = status;
   }
-  const order = await prisma.order.findMany({
-    where,
-    include: { items: true },
-    skip,
-    take: Number(limit),
-    orderBy: { createdAt: "desc" },
-  });
 
-  const total = await prisma.order.count({ where });
+  // ✅ PERF: run count + findMany in a single transaction for consistency
+  const [orders, total] = await prisma.$transaction([
+    prisma.order.findMany({
+      where,
+      include: { items: true },
+      skip,
+      take: Number(limit),
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.order.count({ where }),
+  ]);
 
   return {
-    data: orders,
+    data: orders, // ✅ Fixed: was `data: orders` but variable was named `order`
     pagination: {
       total,
       page: Number(page),

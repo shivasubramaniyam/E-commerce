@@ -10,13 +10,17 @@ export async function checkOutOrder(req, res, next) {
     const order = await checkoutOrderService(req.user.userId);
     res.status(201).json(order);
   } catch (e) {
-    next(err);
+    next(e); // ✅ Fixed: was `next(err)` — `err` was undefined in this scope
   }
 }
 
-export async function getMyOrder(req, res) {
-  const orders = await getMyOrdersService(req.user.userId, req.query);
-  res.json(orders);
+export async function getMyOrder(req, res, next) {
+  try {
+    const orders = await getMyOrdersService(req.user.userId, req.query);
+    res.json(orders);
+  } catch (e) {
+    next(e); // ✅ Added: was missing try/catch (unhandled rejection risk)
+  }
 }
 
 export async function getOrderById(req, res) {

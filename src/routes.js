@@ -10,11 +10,13 @@ import { fileURLToPath } from "node:url";
 const router = Router();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// ✅ PERF: read once at startup, serve from memory — was doing a sync disk read on every request
+const docsHtml = readFileSync(join(__dirname, "../public/index.html"), "utf-8");
+
 // base API route — serves the HTML docs page
 router.get("/", (req, res) => {
-  const html = readFileSync(join(__dirname, "../public/index.html"), "utf-8");
   res.setHeader("Content-Type", "text/html");
-  res.send(html);
+  res.send(docsHtml);
 });
 
 router.use("/auth", authRoutes);

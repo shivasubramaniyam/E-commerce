@@ -45,16 +45,17 @@ export async function getAllProductsServie(query) {
     where.stock = { gt: 0 };
   }
 
-  const products = await prisma.product.findMany({
-    where,
-    skip,
-    take: Number(limit),
-    orderBy: {
-      [sortBy]: order,
-    },
-  });
+  // ✅ PERF: batch count + findMany in a single round-trip for data consistency
+  const [products, total] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: Number(limit),
+      orderBy: { [sortBy]: order },
+    }),
+    prisma.product.count({ where }),
+  ]);
 
-  const total = await prisma.product.count({ where });
   return {
     data: products,
     pagination: {

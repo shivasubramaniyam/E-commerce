@@ -22,13 +22,17 @@ model Product {
   id          String    @id @default(uuid())
   name        String
   description String
-  price       Int
+  price       Decimal   @db.Decimal(10, 2) // ✅ Fixed: Int truncates decimals
   stock       Int
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   cartItems   CartItem[]
   orderItems  OrderItem[]
 
+  // ✅ PERF: indexes for common filter/sort patterns
+  @@index([isActive])
+  @@index([isActive, price])
+  @@index([createdAt])
 }
 
 model Cart {
@@ -38,6 +42,9 @@ model Cart {
   user      User       @relation(fields: [userId], references: [id])
   items     CartItem[]
   createdAt DateTime   @default(now())
+
+  // ✅ PERF: getOrCreateCart runs this query on EVERY cart operation
+  @@index([userId, status])
 }
 
 model CartItem {
@@ -65,15 +72,21 @@ model OrderItem {
 }
 
 model Order {
-  id              String   @id @default(uuid())
+  id              String      @id @default(uuid())
   userId          String
-  totalAmount     Int
+  totalAmount     Decimal     @db.Decimal(10, 2) // ✅ Fixed: match Product price type
   paymentStatus   String
   paymentIntentId String?
   status          OrderStatus @default(PLACED)
-  user            User     @relation(fields: [userId], references: [id])
-  createdAt       DateTime @default(now())
+  user            User        @relation(fields: [userId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   items           OrderItem[]
+
+  // ✅ PERF: indexes for getMyOrders query patterns
+  @@index([userId])
+  @@index([userId, status])
+  @@index([createdAt])
 }
 
 enum Role {

@@ -1,16 +1,14 @@
-import { error } from "console";
-
 export function errorHandler(err, req, res, next) {
-  console.error("Error : ", err);
+  console.error("Error:", err);
 
   // default value
   let statusCode = err.statusCode || 500;
   let message = err.message || "Internal Server Error";
 
-  // Prisma errors (optional but recommended)
+  // Prisma errors
   if (err.code === "P2002") {
-    statusCode = 400;
-    message = "Duplpicate value already exists";
+    statusCode = 409;
+    message = "Duplicate value already exists";
   }
 
   if (err.code === "P2025") {
@@ -18,8 +16,11 @@ export function errorHandler(err, req, res, next) {
     message = "Resource not found";
   }
 
-  res.status(statusCode).json({
-    success: false,
-    message,
-  });
+  // Only send response if headers haven't been sent
+  if (!res.headersSent) {
+    res.status(statusCode).json({
+      success: false,
+      message,
+    });
+  }
 }

@@ -6,19 +6,22 @@ import {
   deleteProductService,
 } from "./product.service.js";
 
-export async function createProduct(req, res) {
+export async function createProduct(req, res, next) {
   try {
     const product = await createProductService(req.body);
-    console.log("BODY:", req.body);
     res.status(201).json(product);
   } catch (e) {
-    res.status(400).json({ message: e.message });
+    next(e);
   }
 }
 
-export async function getAllProducts(req, res) {
-  const products = await getAllProductsServie(req.query);
-  res.json(products);
+export async function getAllProducts(req, res, next) {
+  try {
+    const products = await getAllProductsServie(req.query);
+    res.json(products);
+  } catch (e) {
+    next(e);
+  }
 }
 
 export async function getProductById(req, res) {

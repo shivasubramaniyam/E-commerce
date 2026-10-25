@@ -1,10 +1,8 @@
-import { error } from "node:console";
 import { registerUser, loginUser } from "./auth.service.js";
 
-export async function register(req, res) {
+export async function register(req, res, next) {
   try {
     const { email, password } = req.body;
-    // console.log("body", req.body);
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password required" });
     }
@@ -14,20 +12,20 @@ export async function register(req, res) {
       userId: user.id,
     });
   } catch (e) {
-    res.status(400).json({ message: error.message });
+    next(e); // ✅ propagate to global error handler
   }
 }
 
-export async function login(req, res) {
+export async function login(req, res, next) {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and Passwrod required " });
+      return res.status(400).json({ message: "Email and password required" });
     }
     const token = await loginUser(email, password);
     res.json({ token });
   } catch (e) {
-    res.status(401).json({ message: e.message });
+    next(e); // ✅ propagate to global error handler
   }
 }
